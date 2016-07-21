@@ -2,7 +2,7 @@
 // Created by ÁõÊæÂü on 16/7/20.
 //
 
-#include "EventEngine.h"
+#include "EventEngine.h"s
 #include "assert.h"
 
 EventEngine::EventEngine(void): m_state(STATE_STOP),
@@ -34,8 +34,10 @@ int EventEngine::PostEvent(const Event &e)
         m_input_blkque.PushFront(e);
     }else
     {
-        m_input_blkque.PopBack(e);
+        m_input_blkque.PushBack(e);
     }
+
+    return 0;
 }
 
 
