@@ -25,7 +25,7 @@ int str_2_num(const string & str)
 
 size_t count_words(const string & src)
 {
-    src_trim = del_head_tail_blank(src);
+    string src_trim = del_head_tail_blank(string(src));
 
     if (src_trim.size() == 0)
         return 0;
@@ -65,7 +65,7 @@ void del_str_blank(string &str)
 {
     string tmp_str;
 
-    for (size_t = 0; i < str.size(); ++i)
+    for (size_t i = 0; i < str.size(); ++i)
     {
         if (' ' != str[i])
             tmp_str += str[i];
@@ -94,10 +94,12 @@ string & del_head_tail_blank(string & str)
             break;
     }
 
-    if (tail <= head)
-        return ("");
+    string tgt = "";
 
-    return (str.substr(head, tail-head));
+    if (tail <= head)
+        return tgt;
+
+    return (tgt = str.substr(head, tail-head));
 }
 
 string & filter_head_tail(string & str)
@@ -119,10 +121,12 @@ string & filter_head_tail(string & str)
             break;
     }
 
-    if (tail <= head)
-        return ("");
+    string tgt = "";
 
-    return (str.substr(head, tail-head));
+    if (tail <= head)
+        return tgt;
+
+    return (tgt = str.substr(head, tail-head));
 }
 
 
@@ -189,7 +193,7 @@ bool split_sequence_by_tag(const char * src, vector<string> & tgt_vec, const cha
             curr_str += c;
         }
 
-        c = str[++idx];
+        c = src[++idx];
     }
 
     if (curr_str.size() > 0)

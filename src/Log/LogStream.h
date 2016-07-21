@@ -28,6 +28,7 @@ public:
     LogStream & operator << (EndlType endl_obj);
     LogStream & operator << (const DomainType & domain);
     LogStream & operator << (const ServerAddrType & addr);
+    template <class Type>
     LogStream & operator << (const Type & content)
     {
         m_sstream << content;

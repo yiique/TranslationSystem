@@ -5,6 +5,8 @@
 #include "DBConnPool.h"
 #include "Log/LogStream.h"
 
+DBConnPool DBConnPool::ms_instance;
+
 DBConnPool * DBConnPool::GetInstance()
 {
     return &ms_instance;

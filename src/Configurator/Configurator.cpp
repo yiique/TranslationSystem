@@ -252,6 +252,7 @@ bool Configurator::read_content( ifstream & file, string & content )
 
 void Configurator::PrintConfigInfo()
 {
+
     lout << "|--------------------CONFIG INFO--------------------|" << endl;
     lout << "> _local_ip			 = " <<  _local_ip << endl;
     lout << "> _local_usr_port		 = " <<  _local_usr_port << endl;

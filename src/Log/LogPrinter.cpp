@@ -4,6 +4,8 @@
 
 #include "LogPrinter.h"
 
+LogPrinter LogPrinter::ms_log_instance;
+
 LogPrinter::~LogPrinter(void)
 {
     this->m_log_file.close();

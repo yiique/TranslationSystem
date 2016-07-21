@@ -6,7 +6,7 @@
 #define PROJECT_LOGPRINTER_H
 
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/thread/thread.cpp>
+#include <boost/thread/thread.hpp>
 
 #include "EventEngine/EventEngine.h"
 #include "LogData.h"
