@@ -53,7 +53,7 @@ protected:
     NetResponse(sock_t sockfd);
 
     const sock_t m_src_sockfd;
-    bool m_res;
+    bool m_res;             //由响应方返回,标识是否接收成功
     int  m_sock_errno;
     int  m_protl_errno;
 
