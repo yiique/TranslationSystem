@@ -31,7 +31,7 @@ typedef enum
     EDTYPE_UNDEF_NET_RES,   //10
 
     //心跳包
-            EDTYPE_PULSE_REQ, //11
+    EDTYPE_PULSE_REQ, //11
     EDTYPE_PULSE_RES, //12
     //翻译通知
             EDTYPE_TRANS_STATE, //13
