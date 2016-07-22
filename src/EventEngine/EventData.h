@@ -17,18 +17,19 @@ typedef unsigned long CallID;
 typedef enum
 {
     //NetRequest
-            EDTYPE_LISTEN_NET_REQ, //0
+    EDTYPE_LISTEN_NET_REQ, //0
     EDTYPE_CONN_NET_REQ,   //1
     EDTYPE_CLOSE_NET_REQ,  //2
     EDTYPE_RECV_NET_REQ,   //3
     EDTYPE_SEND_NET_REQ,   //4
     //NetResponse
-            EDTYPE_LISTEN_NET_RES, //5
+    EDTYPE_LISTEN_NET_RES, //5
     EDTYPE_CONN_NET_RES,   //6
     EDTYPE_CLOSE_NET_RES,  //7
     EDTYPE_RECV_NET_RES,   //8
     EDTYPE_SEND_NET_RES,   //9
     EDTYPE_UNDEF_NET_RES,   //10
+
     //ÐÄÌø°ü
             EDTYPE_PULSE_REQ, //11
     EDTYPE_PULSE_RES, //12
