@@ -39,7 +39,7 @@ typedef enum
 typedef enum
 {
     PROTL_SUC,
-    PROTL_ERR_NOSOCK,   // 此socket未注册
+    PROTL_ERR_NOSOCK,   //此socket未注册
     PROTL_ERR_STATE,    //操作与当前状态不匹配
     PROTL_ERR_RECV,     //接收数据包格式错
     PROTL_ERR_TIMEOUT   //超时
@@ -110,11 +110,14 @@ public:
 
     //重写基类PostEvent方法，主要区别是需要调用notify()唤醒epoll
     int PostEvent(const Event & e);
+    void post_handler();
 
 private:
 
     //重写基类run方法
     int run();
+    //忽略原基类on_event()，因为已经将run重载。
+    void on_event(Event & e) {}
 
     void req_listen(EventData * p_edata, EventEngine * p_caller);
     void req_connect(EventData * p_edata, EventEngine * p_caller);
@@ -122,21 +125,16 @@ private:
     void req_recv(EventData * p_edata, EventEngine* p_caller);
     void req_send(EventData * p_edata, EventEngine* p_caller);
 
-    //忽略原基类on_event()，因为已经将run重载。
-    void on_event(Event & e) {}
     void on_timer(const boost::system::error_code& error);
 
 public:
     boost::asio::io_service m_io_service;
     boost::shared_ptr<boost::asio::io_service::work > msp_io_service_worker;
-
-    ConnectionManager m_connection_manager;
-    AcceptorManager m_acceptor_manager;
-
     boost::asio::deadline_timer m_timer;
     UidGenerator m_sockfd_generator;
 
-    void post_handler();
+    ConnectionManager m_connection_manager;
+    AcceptorManager m_acceptor_manager;
 
 };
 

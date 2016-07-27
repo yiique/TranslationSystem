@@ -89,7 +89,6 @@ bool AcceptorManager::Stop(const sock_t sockfd)
     return true;
 }
 
-
 acceptor_ptr AcceptorManager::Find(const sock_t sockfd)
 {
     map<sock_t, acceptor_ptr>::iterator iter = m_acceptor_map.find(sockfd);

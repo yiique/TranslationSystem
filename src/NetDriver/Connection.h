@@ -61,9 +61,8 @@ private:
     string m_endpoint;
 
 private:
-    void handle_connect(const boost::system::error_code & err);
     void handle_resolve(const boost::system::error_code & err, boost::asio::ip::tcp::resolver::iterator endpoint_iterator);
-
+    void handle_connect(const boost::system::error_code & err);
     void handle_read(const boost::system::error_code & e, size_t bytes_transferred);
     void handle_write(const boost::system::error_code & e);
     boost::logic::tribool parse_recv_data(const char * data, const size_t len);

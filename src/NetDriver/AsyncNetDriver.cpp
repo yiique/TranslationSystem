@@ -158,6 +158,55 @@ int AsyncNetDriver::PostEvent(const Event & e)
     return 0;
 }
 
+void AsyncNetDriver::post_handler()
+{
+    //读取输入事件
+    vector<Event> event_vec;
+
+    //非阻塞读取
+    m_input_blkque.TryPopFront(event_vec);
+
+    //读取事件内容，并作响应处理
+    for(size_t i=0; i<event_vec.size(); ++i)
+    {
+        Event & ev = event_vec[i];
+        EventData * p_edata = ev._p_edata;
+
+        if(!p_edata)
+        {
+            lerr << "EventData is null. loop will continue." << endl;
+            continue;
+        }
+
+        const EDType reqtype = p_edata->GetType();
+
+        switch(reqtype)
+        {
+            case EDTYPE_LISTEN_NET_REQ :
+                req_listen(p_edata, ev._p_caller);
+                break;
+            case EDTYPE_CONN_NET_REQ :
+                req_connect(p_edata, ev._p_caller);
+                break;
+            case EDTYPE_CLOSE_NET_REQ :
+                req_close(p_edata, ev._p_caller);
+                break;
+            case EDTYPE_RECV_NET_REQ :
+                req_recv(p_edata, ev._p_caller);
+                break;
+            case EDTYPE_SEND_NET_REQ :
+                req_send(p_edata, ev._p_caller);
+                break;
+            default :
+                lerr<< "WARNING: can't recognize this NetReqType = " << reqtype << endl;
+                break;
+        }//switch restype
+
+        //处理完毕 销毁事件内容
+        delete p_edata;
+    }//for event_vec
+}
+
 
 int AsyncNetDriver::run()
 {
@@ -228,44 +277,6 @@ void AsyncNetDriver::req_connect(EventData * p_edata, EventEngine * p_caller)
     sp_conn->Connect(p_conn_req->_ip, p_conn_req->_port, p_caller, p_conn_req->GetCallID());
 }
 
-void AsyncNetDriver::req_close(EventData * p_edata, EventEngine * p_caller)
-{
-    //根据caller查找线程句柄,并在driver中停止线程
-    if( !p_edata || !p_caller )
-    {
-        lerr << "ERROR: INPUT is null. " << endl;
-        return;
-    }
-
-    CloseNetReq * p_close_req = dynamic_cast<CloseNetReq*>(p_edata);
-    assert(p_close_req);
-
-    //生产NetResponse类
-    CloseNetRes * p_close_res = NULL;
-    sock_t sockfd = p_close_req->GetSrcSock();
-
-    //查找连接
-    if(true == m_connection_manager.Stop(sockfd)
-       || true == m_acceptor_manager.Stop(sockfd) )
-    {
-        p_close_res = new CloseNetRes(sockfd, NULL, NULL);
-        p_close_res->SetResult(true);
-
-        m_sockfd_generator.Recycle(sockfd);
-    }else
-    {
-        //此socket不在表中
-        p_close_res = new CloseNetRes(sockfd);
-        p_close_res->SetResult(false, 0, PROTL_ERR_NOSOCK);
-
-    }
-
-    //返回响应类
-    p_close_res->SetCallID(p_close_req->GetCallID()); //设置callid
-    Event e(p_close_res, this);
-    p_caller->PostEvent(e);
-}
-
 void AsyncNetDriver::req_recv(EventData * p_edata, EventEngine* p_caller)
 {
     //根据caller找到对应的connection线程,执行该线程的recv
@@ -330,6 +341,43 @@ void AsyncNetDriver::req_send(EventData * p_edata, EventEngine* p_caller)
     }
 }
 
+void AsyncNetDriver::req_close(EventData * p_edata, EventEngine * p_caller)
+{
+    //根据caller查找线程句柄,并在driver中停止线程
+    if( !p_edata || !p_caller )
+    {
+        lerr << "ERROR: INPUT is null. " << endl;
+        return;
+    }
+
+    CloseNetReq * p_close_req = dynamic_cast<CloseNetReq*>(p_edata);
+    assert(p_close_req);
+
+    //生产NetResponse类
+    CloseNetRes * p_close_res = NULL;
+    sock_t sockfd = p_close_req->GetSrcSock();
+
+    //查找连接
+    if(true == m_connection_manager.Stop(sockfd)
+       || true == m_acceptor_manager.Stop(sockfd) )
+    {
+        p_close_res = new CloseNetRes(sockfd, NULL, NULL);
+        p_close_res->SetResult(true);
+
+        m_sockfd_generator.Recycle(sockfd);
+    }else
+    {
+        //此socket不在表中
+        p_close_res = new CloseNetRes(sockfd);
+        p_close_res->SetResult(false, 0, PROTL_ERR_NOSOCK);
+    }
+
+    //返回响应类
+    p_close_res->SetCallID(p_close_req->GetCallID()); //设置callid
+    Event e(p_close_res, this);
+    p_caller->PostEvent(e);
+}
+
 
 void AsyncNetDriver::on_timer(const boost::system::error_code& error)
 {
@@ -337,71 +385,3 @@ void AsyncNetDriver::on_timer(const boost::system::error_code& error)
     m_timer.expires_from_now(boost::posix_time::seconds(5));
     m_timer.async_wait(boost::bind(&AsyncNetDriver::on_timer, this, boost::asio::placeholders::error));
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-void AsyncNetDriver::post_handler()
-{
-
-    //读取输入事件
-    vector<Event> event_vec;
-
-    //非阻塞读取
-    m_input_blkque.TryPopFront(event_vec);
-
-    //读取事件内容，并作响应处理
-    for(size_t i=0; i<event_vec.size(); ++i)
-    {
-        Event & ev = event_vec[i];
-        EventData * p_edata = ev._p_edata;
-
-        if(!p_edata)
-        {
-            lerr << "EventData is null. loop will continue." << endl;
-            continue;
-        }
-
-        const EDType reqtype = p_edata->GetType();
-
-        switch(reqtype)
-        {
-            case EDTYPE_LISTEN_NET_REQ :
-                req_listen(p_edata, ev._p_caller);
-                break;
-            case EDTYPE_CONN_NET_REQ :
-                req_connect(p_edata, ev._p_caller);
-                break;
-            case EDTYPE_CLOSE_NET_REQ :
-                req_close(p_edata, ev._p_caller);
-                break;
-            case EDTYPE_RECV_NET_REQ :
-                req_recv(p_edata, ev._p_caller);
-                break;
-            case EDTYPE_SEND_NET_REQ :
-                req_send(p_edata, ev._p_caller);
-                break;
-            default :
-                lerr<< "WARNING: can't recognize this NetReqType = " << reqtype << endl;
-                break;
-        }//switch restype
-
-        //处理完毕 销毁事件内容
-        delete p_edata;
-    }//for event_vec
-
-
-}
-

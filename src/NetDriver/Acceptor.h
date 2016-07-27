@@ -41,20 +41,19 @@ public:
 
 private:
     boost::asio::io_service & m_io_service;
-
-    sock_t m_sockfd;
-
-    CallID m_callid;
-    EventEngine * mp_caller;
-    EventEngine * mp_owner;
-    UidGenerator & m_uid_generator;
     boost::asio::ip::tcp::acceptor m_acceptor;
+    sock_t m_sockfd;
+    UidGenerator & m_uid_generator;
 
     const string & m_listen_ip;
     const string & m_listen_port;
 
     connection_ptr m_in_connection;
     ConnectionManager & m_connection_manager;
+
+    CallID m_callid;
+    EventEngine * mp_caller;
+    EventEngine * mp_owner;
 
 private:
     void start_accept();
