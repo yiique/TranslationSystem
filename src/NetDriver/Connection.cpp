@@ -75,17 +75,6 @@ void Connection::Stop()
 }
 
 
-void Connection::handle_connect(const boost::system::error_code & err)
-{
-    if (!err)
-    {
-        handle_connect_success();
-    }else
-    {
-        handle_connect_error();
-    }
-}
-
 void Connection::handle_resolve(const boost::system::error_code & err, boost::asio::ip::tcp::resolver::iterator endpoint_iterator)
 {
     if (!err)
@@ -99,6 +88,16 @@ void Connection::handle_resolve(const boost::system::error_code & err, boost::as
     }
 }
 
+void Connection::handle_connect(const boost::system::error_code & err)
+{
+    if (!err)
+    {
+        handle_connect_success();
+    }else
+    {
+        handle_connect_error();
+    }
+}
 
 void Connection::handle_read(const boost::system::error_code & e, size_t bytes_transferred)
 {
