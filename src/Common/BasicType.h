@@ -53,7 +53,6 @@ typedef enum
     BASE_SUB_TYPE,
     UYGHUR_LATIN,
     UYGHUR_TRAD,
-
     OTHER
 } SubLanguageType;
 
