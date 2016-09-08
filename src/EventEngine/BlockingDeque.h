@@ -48,7 +48,9 @@ public:
     void PushBack(const elem_t & element);
 
 private:
+    // 若队列里无elem,则等待直到取出
     void pop_element(vector<elem_t> & elem_vec, const size_t max_num, const bool is_front);
+    // 若队列里有elem则取出
     void try_pop_element(vector<elem_t> & elem_vec, const size_t max_num, const bool is_front);
 
 };
@@ -66,103 +68,6 @@ size_t BlockingDeque<elem_t>::WaitCount()
 {
     boost::mutex::scoped_lock lock(m_mutex);
     return m_wait_count;
-}
-
-
-template <typename elem_t>
-void BlockingDeque<elem_t>::try_pop_element(vector <elem_t> &elem_vec, const size_t max_num, const bool is_front)
-{
-    boost::mutex::scoped_lock lock(m_mutex);
-
-    const size_t deq_size = m_elem_deque.size();
-    size_t pop_num = 0;
-
-    if ( 0 == max_num )
-    {
-        pop_num = deq_size;
-    }else
-    {
-        pop_num = ( deq_size < max_num ) ? deq_size : max_num;
-    }
-
-    elem_vec.clear();
-    elem_vec.resize(pop_num);
-
-    if (true == is_front)
-    {
-        for (size_t i = 0; i < pop_num; ++i){
-            elem_vec[i] = m_elem_deque.front();
-            m_elem_deque.pop_front();
-        }
-    }else
-    {
-        for (size_t i = 0; i < pop_num; ++i){
-            elem_vec[i] = m_elem_deque.back();
-            m_elem_deque.pop_back();
-        }
-    }
-
-    if (m_wait_count > 0 && m_elem_deque.size() > 0)
-    {
-        m_cond.notify_one();
-    }
-}
-
-template <typename elem_t>
-void BlockingDeque<elem_t>::pop_element(vector <elem_t> &elem_vec, const size_t max_num, const bool is_front)
-{
-    boost::mutex::scoped_lock lock(m_mutex);
-
-    while(true)
-    {
-        const size_t deq_size = m_elem_deque.size();
-
-        if (0 == deq_size)
-        {
-            ++m_wait_count;
-            m_cond.wait(lock);
-            --m_wait_count;
-            continue;
-        }else
-        {
-            size_t pop_num = 0;
-
-            if (0 == max_num)
-            {
-                pop_num = deq_size;
-            }else
-            {
-                pop_num = (deq_size < max_num) ? deq_size : max_num;
-            }
-
-            elem_vec.clear();
-            elem_vec.resize(pop_num);
-
-            if (true == is_front)
-            {
-                for (size_t i = 0; i < pop_num; ++i)
-                {
-                    elem_vec[i] = m_elem_deque.front();
-                    m_elem_deque.pop_front();
-                }
-            }else
-            {
-                for (size_t i = 0; i < pop_num; ++i)
-                {
-                    elem_vec[i] = m_elem_deque.back();
-                    m_elem_deque.pop_back();
-                }
-            }
-
-            break;
-        }
-
-    }
-
-    if (m_wait_count > 0 && m_elem_deque.size() > 0)
-    {
-        m_cond.notify_one();
-    }
 }
 
 template <typename elem_t>
@@ -247,7 +152,6 @@ bool BlockingDeque<elem_t>::TryPopBack(vector <elem_t> &elem_vec, const size_t m
         return false;
 }
 
-
 template <typename elem_t>
 void BlockingDeque<elem_t>::PushFront(const elem_t &element)
 {
@@ -280,6 +184,103 @@ void BlockingDeque<elem_t>::PushBack(const elem_t &element)
 
     if (true == need_notify)
         m_cond.notify_one();
+}
+
+
+template <typename elem_t>
+void BlockingDeque<elem_t>::pop_element(vector <elem_t> &elem_vec, const size_t max_num, const bool is_front)
+{
+    boost::mutex::scoped_lock lock(m_mutex);
+
+    while(true)
+    {
+        const size_t deq_size = m_elem_deque.size();
+
+        if (0 == deq_size)
+        {
+            ++m_wait_count;
+            m_cond.wait(lock);
+            --m_wait_count;
+            continue;
+        }else
+        {
+            size_t pop_num = 0;
+
+            if (0 == max_num)
+            {
+                pop_num = deq_size;
+            }else
+            {
+                pop_num = (deq_size < max_num) ? deq_size : max_num;
+            }
+
+            elem_vec.clear();
+            elem_vec.resize(pop_num);
+
+            if (true == is_front)
+            {
+                for (size_t i = 0; i < pop_num; ++i)
+                {
+                    elem_vec[i] = m_elem_deque.front();
+                    m_elem_deque.pop_front();
+                }
+            }else
+            {
+                for (size_t i = 0; i < pop_num; ++i)
+                {
+                    elem_vec[i] = m_elem_deque.back();
+                    m_elem_deque.pop_back();
+                }
+            }
+
+            break;
+        }
+
+    }
+
+    if (m_wait_count > 0 && m_elem_deque.size() > 0)
+    {
+        m_cond.notify_one();
+    }
+}
+
+template <typename elem_t>
+void BlockingDeque<elem_t>::try_pop_element(vector <elem_t> &elem_vec, const size_t max_num, const bool is_front)
+{
+    boost::mutex::scoped_lock lock(m_mutex);
+
+    const size_t deq_size = m_elem_deque.size();
+    size_t pop_num = 0;
+
+    if ( 0 == max_num )
+    {
+        pop_num = deq_size;
+    }else
+    {
+        pop_num = ( deq_size < max_num ) ? deq_size : max_num;
+    }
+
+    elem_vec.clear();
+    elem_vec.resize(pop_num);
+
+    if (true == is_front)
+    {
+        for (size_t i = 0; i < pop_num; ++i){
+            elem_vec[i] = m_elem_deque.front();
+            m_elem_deque.pop_front();
+        }
+    }else
+    {
+        for (size_t i = 0; i < pop_num; ++i){
+            elem_vec[i] = m_elem_deque.back();
+            m_elem_deque.pop_back();
+        }
+    }
+
+    if (m_wait_count > 0 && m_elem_deque.size() > 0)
+    {
+        m_cond.notify_one();
+    }
 }
 
 #endif //PROJECT_BLOCKINGDEQUE_H

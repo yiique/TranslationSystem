@@ -135,8 +135,8 @@ public:
     {
         return mp_send_packet;
     };
-private:
 
+private:
     int m_protl_errno;
     NetPacket * mp_send_packet;
 };
