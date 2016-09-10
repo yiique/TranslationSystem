@@ -107,7 +107,6 @@ public:
         return m_is_good;
     };
 
-
     //流式写入  用于从网络流中接收NetPacket
     PACKET_STATE_T Write(const char * buf, size_t len);
 
@@ -116,7 +115,6 @@ public:
                          const string &msg_type,
                          const string &body,
                          const string &head_res_code = HEAD_RESPONSE_200);
-
 
 
     void Clear()

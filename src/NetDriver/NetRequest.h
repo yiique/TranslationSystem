@@ -20,7 +20,7 @@ public:
 
     virtual const EDType GetType() const = 0;
 
-    sork_t GetSrcSock() const
+    sock_t GetSrcSock() const
     {
         return m_src_sockfd;
     }
