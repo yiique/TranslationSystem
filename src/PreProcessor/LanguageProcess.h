@@ -20,11 +20,12 @@ using namespace std;
 class LanguageProcess
 {
 public:
-    // 对原文本进行utf8切分预处理,无需token,原文本保持不变
+    // 对整个文本进行预处理,utf8转换
     static bool StandardPreTextProcess(string & src);
-    // 断句
+    // 按utf8字符切分文本,按句子切分字符流
     static bool StandardSplitSent(const string & src, vector<string> & sent_vec);
-
+    // 对单个句子进行预处理,过滤多个空格
+    // 匹配词典 & 模版
     static bool StandardPreSentProcess(SentProcCell & sent_cell);
 };
 

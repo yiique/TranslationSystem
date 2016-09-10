@@ -13,8 +13,14 @@ bool LanguageProcess::StandardPreTextProcess(string &src)
 
 bool LanguageProcess::StandardSplitSent(const string &src, vector<string> &sent_vec)
 {
-    ssplite::EnSentSpliter spliter(src, false);
+    string token_src(src);
+
+    CLanguage::SplitStrByChar(token_src);
+    // 按照中文方式切分句子(包含的标点更多)
+    ssplite::ChSentSpliter spliter(token_src, false);
+    // ssplite::StandardSentSpliter spliter(token_src, false);
     sent_vec = spliter.GetSpliteResult();
+
     return true;
 }
 
