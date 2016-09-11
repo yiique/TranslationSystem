@@ -94,7 +94,7 @@ namespace dictionary
                       list<MatchResult> & result_list);
         int MatchSentByMaxSequence(const UsrID & usrid,
                                    const DomainType & domain_info,
-                                   const bool & is_with_blank,
+                                   //const bool & is_with_blank,
                                    const string & sent,
                                    list<MatchResult> & result_list);
 
@@ -141,9 +141,11 @@ namespace dictionary
         // 华城——最长序列匹配本地字典
         int match_sent_loacl_by_max_sequence(const UsrID & usrid,
                                              const DomainType & domain_info,
-                                             const bool & is_with_blank,
+                                             //const bool & is_with_blank,
                                              const string & sent,
                                              list<MatchResult> & result_list);
+        // 递归保留最长的子序列
+        void keep_max_sequence(list<MatchResult> & result_list, int max_len);
 
         void filter_match_result(list<MatchResult> & result_list);
         void erase_conflict(list<MatchResult> & result_list);
