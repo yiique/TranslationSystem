@@ -347,11 +347,11 @@ int DictManager::MatchSent(const UsrID & usrid,
 
 int DictManager::MatchSentByMaxSequence(const UsrID & usrid,
                                         const DomainType & domain_info,
-                                        //const bool & is_with_blank,
+                                        const bool & is_with_blank,
                                         const string & sent,
                                         list<MatchResult> & result_list)
 {
-    return match_sent_loacl_by_max_sequence(usrid, domain_info, sent, result_list);
+    return match_sent_loacl_by_max_sequence(usrid, domain_info, is_with_blank, sent, result_list);
 }
 
 
@@ -586,11 +586,11 @@ int DictManager::match_sent_local(const UsrID & usrid,
 
 int DictManager::match_sent_loacl_by_max_sequence(const UsrID & usrid,
                                                   const DomainType & domain_info,
-                                                  //const bool & is_with_blank,
+                                                  const bool & is_with_blank,
                                                   const string & sent,
                                                   list<MatchResult> & result_list)
 {
-    match_sent_local(usrid, domain_info, true, sent, result_list);
+    match_sent_local(usrid, domain_info, is_with_blank, sent, result_list);
 
     // 按递减长度尝试寻找最长串,如果存在则删除冲突的串
     vector<string> word_vec;

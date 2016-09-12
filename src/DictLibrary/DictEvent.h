@@ -18,7 +18,7 @@ using namespace std;
 // DictModifyReq    包含一个DictInfo            Res     包含一个int类结果              修改词典
 // DictRecoverReq   包含一个DictId              Res     包含一个int类结果
 // ToSysDictReq     包含word_id vec和dict_id    Res     包含一个int类结果
-
+//
 // WordInsertReq    包含一个word_info和dict_id   Res     包含一个int类结果              插入单词
 // WordDeleteReq    包含一个word_id和dict_id     Res     包含一个int类结果              删除单词
 // WordModifyReq    包含一个word_info和dict_id   Res     包含一个int类结果              修改单词

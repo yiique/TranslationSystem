@@ -782,14 +782,663 @@ int DBOperation::recover_word(mysqlpp::Query & query, const WordID & word_id)
 }
 
 
+// ================================================
+// ================模版相关操作======================
+// ================================================
+// public
+int DBOperation::CreateTemplateLib(TemplateLibInfo & templatelib_info)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::create_template_lib, _1,
+                                                          boost::ref(templatelib_info)));
+}
+
+int DBOperation::DeleteTemplateLib(const TemplateLibInfo & templatelib_info)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::delete_template_lib, _1,
+                                                          boost::ref(templatelib_info)));
+}
+
+int DBOperation::ModifyTemplateLib(const TemplateLibInfo & templatelib_info)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::modify_template_lib, _1,
+                                                          boost::ref(templatelib_info)));
+}
 
 
+int DBOperation::InsertTemplate(const TemplateLibID templatelib_id, TemplateInfo & template_info)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::insert_template, _1,
+                                                          boost::ref(templatelib_id),
+                                                          boost::ref(template_info)));
+}
+
+int DBOperation::InsertTemplateGroup(const TemplateLibID templatelib_id, const vector<bool> & filter_vec, vector<TemplateInfo> & template_info_vec)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::insert_template_group, _1,
+                                                          boost::ref(templatelib_id),
+                                                          boost::ref(filter_vec),
+                                                          boost::ref(template_info_vec)));
+}
+
+int DBOperation::DeleteTemplate(const TemplateID template_id)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::delete_template, _1,
+                                                          boost::ref(template_id)));
+}
+
+int DBOperation::ModifyTemplate(const TemplateInfo & template_info)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::modify_template, _1,
+                                                          boost::ref(template_info)));
+}
 
 
+int DBOperation::LoadAllTemplateLib(vector<TemplateLibInfo> & templatelib_info_vec)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::load_all_template_lib, _1,
+                                                          boost::ref(templatelib_info_vec)));
+}
+
+int DBOperation::LoadTemplate(const TemplateLibInfo & templatelib_info, vector<TemplateInfo> & template_info_vec)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::load_template, _1,
+                                                          boost::ref(templatelib_info),
+                                                          boost::ref(template_info_vec)));
+}
 
 
+int DBOperation::GetRecoverTemplateInfo(const TemplateID & template_id, TemplateInfo & template_info)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::get_recover_template_info, _1,
+                                                          boost::ref(template_id),
+                                                          boost::ref(template_info)));
+}
+
+int DBOperation::RecoverTemplate(const TemplateID & template_id)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::recover_template, _1,
+                                                          boost::ref(template_id)));
+}
+
+int DBOperation::GetMaxTemplateID(TemplateLibID & templatelib_id, TemplateID & template_id)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::get_max_template_id, _1,
+                                                          boost::ref(templatelib_id),
+                                                          boost::ref(template_id)));
+}
+
+// private
+int DBOperation::create_template_lib(mysqlpp::Query & query, TemplateLibInfo & templatelib_info)
+{
+    templatelib_info.is_deleted = 0;
+
+    //入数据库之前转换为UTF-8
+    string name = templatelib_info.templatelib_name;
+    string description = templatelib_info.description;
+
+    try
+    {
+        //执行插入
+        query << "insert into templatelibinfo(username, templatelibname, isdeleted, isactive, issystem, description, type, srclanguage, tgtlanguage, createtime) values (" ;
+        query << "\"" << templatelib_info.usr_id << "\", " ;
+        query << "\"" << mysqlpp::escape << name << "\", ";
+        query << templatelib_info.is_deleted << ", " ;
+        query << templatelib_info.is_active << ", ";
+        query << templatelib_info.is_system << ", ";
+        query << "\"" << mysqlpp::escape << description << "\", ";
+        query << "\"" << templatelib_info.domain_info.first << "\", ";
+        query << "\"" << templatelib_info.domain_info.second.first << "\", ";
+        query << "\"" << templatelib_info.domain_info.second.second << "\", ";
+        query << "now() )";
+
+        //lout << query.str() << endl;
+
+        query.execute();
+
+        //获得insertid
+        templatelib_info.templatelib_id = query.insert_id();
+
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "ERROR: Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_EXCEPTION;
+    }
 
 
+    return SUCCESS;
+}
+
+int DBOperation::delete_template_lib(mysqlpp::Query & query, const TemplateLibInfo & templatelib_info)
+{
+    try
+    {
+        query << "update templatelibinfo set isdeleted=1 where tid = " << templatelib_info.templatelib_id;
+        //lout << query.str() << endl;
+        query.execute();
+
+        query.reset();
+        query << "update templateiteminfo set isdeleted=1 where templatelib_id = " << templatelib_info.templatelib_id;
+        //lout << query.str() << endl;
+        query.execute();
+
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_FAILED;
+    }
+
+    return SUCCESS;
+}
+
+int DBOperation::modify_template_lib(mysqlpp::Query & query, const TemplateLibInfo & templatelib_info)
+{
+    try
+    {
+        string name = templatelib_info.templatelib_name;
+        string description = templatelib_info.description;
+
+        query << "update templatelibinfo set templatelibname=\"" << mysqlpp::escape << name ;
+        query << "\", description=\"" << mysqlpp::escape << description ;
+        query << "\", isactive=" << templatelib_info.is_active ;
+        query << ", type=\"" << templatelib_info.domain_info.first ;
+        query << "\", srclanguage=\"" << templatelib_info.domain_info.second.first;
+        query << "\", tgtlanguage=\"" << templatelib_info.domain_info.second.second;
+        query << "\"  where tid = " << templatelib_info.templatelib_id;
+
+        //lout << query.str() << endl;
+        query.execute();
+
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_FAILED;
+    }
+
+    return SUCCESS;
+}
+
+
+int DBOperation::insert_template(mysqlpp::Query & query, const TemplateLibID templatelib_id, TemplateInfo & template_info)
+{
+    template_info.is_deleted = 0;
+
+    //入数据库之前转换为UTF-8
+    string src = template_info.src;
+    string tgt = template_info.tgt;
+
+    try
+    {
+        //执行插入
+        query << "insert into templateiteminfo(tid, templatelib_id, src, tgt, isdeleted, isactive, ischecked, createtime) values (" ;
+        query << template_info.template_id << ", ";
+        query << templatelib_id << ", \"" ;
+        query << mysqlpp::escape << src << "\", \"";
+        query << mysqlpp::escape << tgt << "\", " ;
+        query << template_info.is_deleted << ", " ;
+        query << template_info.is_active << ", ";
+        query << template_info.is_checked << ", ";
+        query << "now() )";
+        query.execute();
+
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "ERROR: Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_EXCEPTION;
+    }
+    return SUCCESS;
+}
+
+int DBOperation::insert_template_group(mysqlpp::Query & query, const TemplateLibID templatelib_id, const vector<bool> & filter_vec, vector<TemplateInfo> & template_info_vec)
+{
+    if(filter_vec.size() != template_info_vec.size())
+        return ERR_DB_TEMPLATE_VEC_NOT_RIGHT;
+
+    int flag=1;
+    if(0 == filter_vec.size())
+    {
+        return SUCCESS;
+    }
+    try
+    {
+        int count = 0;
+        int tag = 1;
+        int group_num = template_info_vec.size() / GROUPNUM;
+
+        if(template_info_vec.size() < GROUPNUM)
+            group_num = 1;
+        else if( template_info_vec.size() % GROUPNUM > 0)
+            group_num += 1;
+
+        while(tag <= group_num)
+        {
+            query << "insert into templateiteminfo(tid, templatelib_id, src, tgt, isdeleted, isactive, ischecked, createtime) values ";
+
+            for(size_t i=0; i<GROUPNUM && count+i < template_info_vec.size(); i++)
+            {
+                if(true == filter_vec[count+i])
+                {
+                    query << "(";
+                    query << template_info_vec[count+i].template_id << ", ";
+                    query << templatelib_id << ", \"" ;
+                    query << mysqlpp::escape << template_info_vec[count+i].src << "\", \"";
+                    query << mysqlpp::escape << template_info_vec[count+i].tgt << "\", " ;
+                    query << template_info_vec[count+i].is_deleted << ", " ;
+                    query << template_info_vec[count+i].is_active << ", ";
+                    query << template_info_vec[count+i].is_checked << ", ";
+
+                    if(tag == group_num)
+                    {
+                        if(template_info_vec.size()-1 == i+count)
+                        {
+                            query << "now() )";
+                            break;
+                        }
+                        else
+                        {
+                            query << "now() )";
+                            query << ", ";
+                        }
+                    }
+                    else
+                    {
+                        if(GROUPNUM-1 == i)
+                        {
+                            query << "now() )";
+                        }
+                        else
+                        {
+                            query << "now() )";
+                            query << ", ";
+                        }
+                    }
+                }
+            }
+
+            query.execute();
+            query.reset();
+
+            count += GROUPNUM;
+            tag++;
+        }
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "ERROR: Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_EXCEPTION;
+    }
+
+    return SUCCESS;
+}
+
+int DBOperation::delete_template(mysqlpp::Query & query, const TemplateID template_id)
+{
+    try
+    {
+        query << "update templateiteminfo set isdeleted=1 where tid = " << template_id;
+        query.execute();
+
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_FAILED;
+    }
+
+    return SUCCESS;
+}
+
+int DBOperation::modify_template(mysqlpp::Query & query, const TemplateInfo & template_info)
+{
+    try
+    {
+        string src = template_info.src;
+        string tgt = template_info.tgt;
+
+        query << "update templateiteminfo set src=\"" << mysqlpp::escape << src << "\", tgt=\"" << mysqlpp::escape << tgt << "\", isactive=" << template_info.is_active << ", ischecked=" << template_info.is_checked << "  where tid = " << template_info.template_id;
+        query.execute();
+
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_FAILED;
+    }
+    return SUCCESS;
+}
+
+
+int DBOperation::load_all_template_lib(mysqlpp::Query & query, vector<TemplateLibInfo> & templatelib_info_vec)
+{
+    templatelib_info_vec.clear();
+
+    try
+    {
+        query << "select * from templatelibinfo where isdeleted != 1 ";
+        vector<templatelibinfo> lib_res;
+        query.storein(lib_res);
+
+        for(size_t i=0; i<lib_res.size(); ++i)
+        {
+            templatelibinfo & libinfo = lib_res[i];
+
+            TemplateLibInfo info;
+
+            info.templatelib_id = libinfo.tid;
+            info.usr_id = libinfo.username;
+            info.templatelib_name = libinfo.templatelibname.c_str();
+            info.is_deleted = libinfo.isdeleted;
+            info.is_active = libinfo.isactive;
+            info.is_system = libinfo.issystem;
+            info.description = libinfo.description.c_str();
+            info.domain_info.first = libinfo.type;
+            info.domain_info.second.first = libinfo.srclanguage;
+            info.domain_info.second.second = libinfo.tgtlanguage;
+
+            templatelib_info_vec.push_back(info);
+        }
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_FAILED;
+    }
+
+    return SUCCESS;
+}
+
+int DBOperation::load_template(mysqlpp::Query & query, const TemplateLibInfo & templatelib_info, vector<TemplateInfo> & template_info_vec)
+{
+    template_info_vec.clear();
+
+    try
+    {
+        query << "select * from templateiteminfo where isdeleted != 1 and templatelib_id = " << templatelib_info.templatelib_id;
+        vector<templateiteminfo> item_res;
+        query.storein(item_res);
+
+        for(size_t i=0; i<item_res.size(); ++i)
+        {
+            templateiteminfo & item = item_res[i];
+
+            TemplateInfo info;
+            info.template_id = item.tid;
+            info.src = item.src.c_str();
+            info.tgt = item.tgt.c_str();
+            info.is_deleted = item.isdeleted;
+            info.is_active = item.isactive;
+            info.is_checked = item.ischecked;
+            template_info_vec.push_back(info);
+        }
+
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_FAILED;
+    }
+
+    return SUCCESS;
+}
+
+int DBOperation::get_recover_template_info(mysqlpp::Query & query, const TemplateID & template_id, TemplateInfo & template_info)
+{
+    try
+    {
+        query << "select * from templateiteminfo where tid = " << template_id;
+        vector<templateiteminfo> item_res;
+        query.storein(item_res);
+
+        if(item_res.size() != 0)
+        {
+            templateiteminfo & item = item_res[0];
+
+            template_info.template_id = item.tid;
+            template_info.src = item.src.c_str();
+            template_info.tgt = item.tgt.c_str();
+            template_info.is_deleted = item.isdeleted;
+            template_info.is_active = item.isactive;
+
+            template_info.is_checked = item.ischecked;
+        }
+
+        return ERR_NOTEMPLATE_GET;
+
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_FAILED;
+    }
+
+    return SUCCESS;
+}
+
+int DBOperation::recover_template(mysqlpp::Query & query, const TemplateID & template_id)
+{
+    try
+    {
+        query << "update templateiteminfo set isdeleted=0 where tid = " << template_id;
+        query.execute();
+
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_FAILED;
+    }
+
+    return SUCCESS;
+}
+
+int DBOperation::get_max_template_id(mysqlpp::Query & query, TemplateLibID & templatelib_id, TemplateID & template_id)
+{
+    try
+    {
+        query << "select tid from templatelibinfo order by tid desc limit 0,1";
+        vector<templatelibinfo> res;
+        query.storein(res);
+
+        if(res.size() == 0 )
+        {
+            templatelib_id = 0;
+        }else
+        {
+            templatelib_id = res[0].tid;
+        }
+
+        lout << "templatelib_id = " << templatelib_id << endl;
+
+        query.reset();
+        query << "select tid from templateiteminfo order by tid desc limit 0,1";
+        vector<templateiteminfo> item_res;
+        query.storein(item_res);
+
+        if(item_res.size() == 0 )
+        {
+            template_id = 0;
+        }else
+        {
+            template_id = item_res[0].tid;
+        }
+
+        lout << "template_id = " << template_id << endl;
+
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_FAILED;
+    }
+
+    return SUCCESS;
+}
+
+// ----------------未使用----------------
+
+int DBOperation::GetRecoverTemplateLibTemplateInfo(const TemplateLibID & templatelib_id, vector<TemplateInfo> & template_vec)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::get_recover_template_lib_template_info, _1,
+                                                          boost::ref(templatelib_id),
+                                                          boost::ref(template_vec)));
+}
+
+int DBOperation::GetRecoverTemplateLibInfo(const TemplateLibID & templatelib_id, TemplateLibInfo & templatelib_info)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::get_recover_template_lib_info, _1,
+                                                          boost::ref(templatelib_id),
+                                                          boost::ref(templatelib_info)));
+}
+
+int DBOperation::RecoverTemplateLib(const TemplateLibID & templatelib_id)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::recover_template_lib, _1,
+                                                          boost::ref(templatelib_id)));
+}
+
+int DBOperation::GetImportTemplateInfo(const vector<int> & import_template_id, vector<TemplateInfo> & import_template_info)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::get_import_template_info, _1,
+                                                          boost::ref(import_template_id),
+                                                          boost::ref(import_template_info)));
+}
+
+int DBOperation::ModifyStatus_T(const vector<int> & import_template_id)
+{
+    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::modify_status_t, _1,
+                                                          boost::ref(import_template_id)));
+}
+
+int DBOperation::get_recover_template_lib_template_info(mysqlpp::Query & query, const TemplateLibID & templatelib_id, vector<TemplateInfo> & template_vec)
+{
+    template_vec.clear();
+
+    try
+    {
+        query << "select * from templateiteminfo where templatelib_id = " << templatelib_id;
+        vector<templateiteminfo> item_res;
+        query.storein(item_res);
+
+        if(item_res.size() != 0)
+        {
+            for(size_t i=0; i<item_res.size(); ++i)
+            {
+                templateiteminfo & item = item_res[i];
+
+                TemplateInfo info;
+                info.template_id = item.tid;
+                info.src = item.src.c_str();
+                info.tgt = item.tgt.c_str();
+                info.is_deleted = item.isdeleted;
+                info.is_active = item.isactive;
+                info.is_checked = item.ischecked;
+                template_vec.push_back(info);
+            }
+        }
+
+        return ERR_NOTEMPLATE_GET;
+
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_FAILED;
+    }
+
+    return SUCCESS;
+}
+
+int DBOperation::get_recover_template_lib_info(mysqlpp::Query & query, const TemplateLibID & templatelib_id, TemplateLibInfo & templatelib_info)
+{
+    try
+    {
+        query << "select * from templatelibinfo where tid = " << templatelib_id;
+        vector<templatelibinfo> lib_res;
+        query.storein(lib_res);
+
+        if(lib_res.size() != 0)
+        {
+            templatelibinfo & libinfo = lib_res[0];
+            templatelib_info.templatelib_id = libinfo.tid;
+            templatelib_info.usr_id = libinfo.username;
+            templatelib_info.templatelib_name = libinfo.templatelibname.c_str();
+            templatelib_info.is_deleted = libinfo.isdeleted;
+            templatelib_info.is_active = libinfo.isactive;
+            templatelib_info.is_system = libinfo.issystem;
+            templatelib_info.description = libinfo.description.c_str();
+            templatelib_info.domain_info.first = libinfo.type;
+            templatelib_info.domain_info.second.first = libinfo.srclanguage;
+            templatelib_info.domain_info.second.second = libinfo.tgtlanguage;
+        }
+        return ERR_NOTEMPLATELIB_GET;
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_FAILED;
+    }
+
+    return SUCCESS;
+}
+
+int DBOperation::recover_template_lib(mysqlpp::Query & query, const TemplateLibID & templatelib_id)
+{
+    try
+    {
+        query << "update templatelibinfo set isdeleted=0 where tid = " << templatelib_id;
+        query.execute();
+
+        query.reset();
+        query << "update templateiteminfo set isdeleted=0 where templatelib_id = " << templatelib_id;
+        query.execute();
+
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_FAILED;
+    }
+
+    return SUCCESS;
+}
+
+int DBOperation::get_import_template_info(mysqlpp::Query & query, const vector<int> & import_template_id, vector<TemplateInfo> & import_template_info)
+{
+    import_template_info.clear();
+
+    try
+    {
+        for(size_t i=0; i<import_template_id.size(); i++)
+        {
+            query << "select * from templateiteminfo where tid = " << import_template_id[i];
+            vector<templateiteminfo> item;
+            query.storein(item);
+
+            TemplateInfo info;
+            info.template_id = item[0].tid;
+            info.src = item[0].src.c_str();
+            info.tgt = item[0].tgt.c_str();
+            info.is_deleted = item[0].isdeleted;
+            info.is_active = item[0].isactive;
+            info.is_checked = item[0].ischecked;
+            import_template_info.push_back(info);
+
+            query.reset();
+        }
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_FAILED;
+    }
+
+    return SUCCESS;
+}
+
+int DBOperation::modify_status_t(mysqlpp::Query & query, const vector<int> & import_template_id)
+{
+    try
+    {
+        for(size_t i=0; i<import_template_id.size(); i++)
+        {
+            query << "update templateimport set status=2, isdeleted=1 where fromid = " << import_template_id[i];
+            query.execute();
+        }
+    }catch(mysqlpp::Exception e)
+    {
+        lerr<< "Failed with mysql exception : " << e.what() << endl;
+        return ERR_DB_FAILED;
+    }
+
+    return SUCCESS;
+}
 
 
 
@@ -1990,394 +2639,8 @@ int DBOperation::recover_after_word(mysqlpp::Query & query, const AfterWordID & 
     return SUCCESS;
 }
 
-int DBOperation::InsertTemplate(const TemplateLibID templatelib_id, TemplateInfo & template_info)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::insert_template, _1,
-                                                          boost::ref(templatelib_id),
-                                                          boost::ref(template_info)));
-}
 
-int DBOperation::insert_template(mysqlpp::Query & query, const TemplateLibID templatelib_id, TemplateInfo & template_info)
-{
-    template_info.is_deleted = 0;
 
-    //入数据库之前转换为UTF-8
-    string src = template_info.src;
-    string tgt = template_info.tgt;
-
-    try
-    {
-        //执行插入
-        query << "insert into templateiteminfo(tid, templatelib_id, src, tgt, isdeleted, isactive, ischecked, createtime) values (" ;
-        query << template_info.template_id << ", ";
-        query << templatelib_id << ", \"" ;
-        query << mysqlpp::escape << src << "\", \"";
-        query << mysqlpp::escape << tgt << "\", " ;
-        query << template_info.is_deleted << ", " ;
-        query << template_info.is_active << ", ";
-        query << template_info.is_checked << ", ";
-        query << "now() )";
-
-        //lout << query.str() << endl;
-
-        query.execute();
-
-        //获得insertid
-        //template_info.template_id = query.insert_id();
-
-        //lout << "Get word insert id = " << word_info.word_id << endl;
-
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "ERROR: Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_EXCEPTION;
-    }
-
-
-    return SUCCESS;
-}
-
-int DBOperation::InsertTemplateGroup(const TemplateLibID templatelib_id, const vector<bool> & filter_vec, vector<TemplateInfo> & template_info_vec)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::insert_template_group, _1,
-                                                          boost::ref(templatelib_id),
-                                                          boost::ref(filter_vec),
-                                                          boost::ref(template_info_vec)));
-}
-
-int DBOperation::insert_template_group(mysqlpp::Query & query, const TemplateLibID templatelib_id, const vector<bool> & filter_vec, vector<TemplateInfo> & template_info_vec)
-{
-    if(filter_vec.size() != template_info_vec.size())
-        return ERR_DB_TEMPLATE_VEC_NOT_RIGHT;
-
-    int flag=1;
-    if(0 == filter_vec.size())
-    {
-        return SUCCESS;
-    }
-
-    try
-    {
-        int count = 0;
-        int tag = 1;
-        int group_num = template_info_vec.size() / GROUPNUM;
-
-        if(template_info_vec.size() < GROUPNUM)
-            group_num = 1;
-        else if( template_info_vec.size() % GROUPNUM > 0)
-            group_num += 1;
-
-        while(tag <= group_num)
-        {
-            query << "insert into templateiteminfo(tid, templatelib_id, src, tgt, isdeleted, isactive, ischecked, createtime) values ";
-
-            for(size_t i=0; i<GROUPNUM && count+i < template_info_vec.size(); i++)
-            {
-                if(true == filter_vec[count+i])
-                {
-                    query << "(";
-                    query << template_info_vec[count+i].template_id << ", ";
-                    query << templatelib_id << ", \"" ;
-                    query << mysqlpp::escape << template_info_vec[count+i].src << "\", \"";
-                    query << mysqlpp::escape << template_info_vec[count+i].tgt << "\", " ;
-                    query << template_info_vec[count+i].is_deleted << ", " ;
-                    query << template_info_vec[count+i].is_active << ", ";
-                    query << template_info_vec[count+i].is_checked << ", ";
-
-                    if(tag == group_num)
-                    {
-                        if(template_info_vec.size()-1 == i+count)
-                        {
-                            query << "now() )";
-                            break;
-                        }
-                        else
-                        {
-                            query << "now() )";
-                            query << ", ";
-                        }
-                    }
-                    else
-                    {
-                        if(GROUPNUM-1 == i)
-                        {
-                            query << "now() )";
-                        }
-                        else
-                        {
-                            query << "now() )";
-                            query << ", ";
-                        }
-                    }
-                }
-            }
-
-            //lout << query.str() << endl;
-            query.execute();
-            query.reset();
-
-            count += GROUPNUM;
-            tag++;
-        }
-
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "ERROR: Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_EXCEPTION;
-    }
-
-
-    return SUCCESS;
-}
-
-int DBOperation::DeleteTemplate(const TemplateID template_id)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::delete_template, _1,
-                                                          boost::ref(template_id)));
-}
-
-int DBOperation::delete_template(mysqlpp::Query & query, const TemplateID template_id)
-{
-    try
-    {
-        query << "update templateiteminfo set isdeleted=1 where tid = " << template_id;
-        query.execute();
-
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_FAILED;
-    }
-
-    return SUCCESS;
-}
-
-
-int DBOperation::ModifyTemplate(const TemplateInfo & template_info)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::modify_template, _1,
-                                                          boost::ref(template_info)));
-}
-
-int DBOperation::modify_template(mysqlpp::Query & query, const TemplateInfo & template_info)
-{
-    try
-    {
-        string src = template_info.src;
-        string tgt = template_info.tgt;
-
-        query << "update templateiteminfo set src=\"" << mysqlpp::escape << src << "\", tgt=\"" << mysqlpp::escape << tgt << "\", isactive=" << template_info.is_active << ", ischecked=" << template_info.is_checked << "  where tid = " << template_info.template_id;
-        query.execute();
-
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_FAILED;
-    }
-
-    return SUCCESS;
-}
-
-int DBOperation::CreateTemplateLib(TemplateLibInfo & templatelib_info)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::create_template_lib, _1,
-                                                          boost::ref(templatelib_info)));
-}
-
-int DBOperation::create_template_lib(mysqlpp::Query & query, TemplateLibInfo & templatelib_info)
-{
-    templatelib_info.is_deleted = 0;
-
-    //入数据库之前转换为UTF-8
-    string name = templatelib_info.templatelib_name;
-    string description = templatelib_info.description;
-
-    try
-    {
-        //执行插入
-        query << "insert into templatelibinfo(username, templatelibname, isdeleted, isactive, issystem, description, type, srclanguage, tgtlanguage, createtime) values (" ;
-        query << "\"" << templatelib_info.usr_id << "\", " ;
-        query << "\"" << mysqlpp::escape << name << "\", ";
-        query << templatelib_info.is_deleted << ", " ;
-        query << templatelib_info.is_active << ", ";
-        query << templatelib_info.is_system << ", ";
-        query << "\"" << mysqlpp::escape << description << "\", ";
-        query << "\"" << templatelib_info.domain_info.first << "\", ";
-        query << "\"" << templatelib_info.domain_info.second.first << "\", ";
-        query << "\"" << templatelib_info.domain_info.second.second << "\", ";
-        query << "now() )";
-
-        //lout << query.str() << endl;
-
-        query.execute();
-
-        //获得insertid
-        templatelib_info.templatelib_id = query.insert_id();
-
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "ERROR: Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_EXCEPTION;
-    }
-
-
-    return SUCCESS;
-}
-
-int DBOperation::ModifyTemplateLib(const TemplateLibInfo & templatelib_info)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::modify_template_lib, _1,
-                                                          boost::ref(templatelib_info)));
-}
-
-int DBOperation::modify_template_lib(mysqlpp::Query & query, const TemplateLibInfo & templatelib_info)
-{
-    try
-    {
-        string name = templatelib_info.templatelib_name;
-        string description = templatelib_info.description;
-
-        query << "update templatelibinfo set templatelibname=\"" << mysqlpp::escape << name ;
-        query << "\", description=\"" << mysqlpp::escape << description ;
-        query << "\", isactive=" << templatelib_info.is_active ;
-        query << ", type=\"" << templatelib_info.domain_info.first ;
-        query << "\", srclanguage=\"" << templatelib_info.domain_info.second.first;
-        query << "\", tgtlanguage=\"" << templatelib_info.domain_info.second.second;
-        query << "\"  where tid = " << templatelib_info.templatelib_id;
-
-        //lout << query.str() << endl;
-        query.execute();
-
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_FAILED;
-    }
-
-    return SUCCESS;
-}
-
-int DBOperation::DeleteTemplateLib(const TemplateLibInfo & templatelib_info)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::delete_template_lib, _1,
-                                                          boost::ref(templatelib_info)));
-}
-
-int DBOperation::delete_template_lib(mysqlpp::Query & query, const TemplateLibInfo & templatelib_info)
-{
-    try
-    {
-        query << "update templatelibinfo set isdeleted=1 where tid = " << templatelib_info.templatelib_id;
-        //lout << query.str() << endl;
-        query.execute();
-
-        query.reset();
-        query << "update templateiteminfo set isdeleted=1 where templatelib_id = " << templatelib_info.templatelib_id;
-        //lout << query.str() << endl;
-        query.execute();
-
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_FAILED;
-    }
-
-    return SUCCESS;
-}
-
-
-int DBOperation::LoadAllTemplateLib(vector<TemplateLibInfo> & templatelib_info_vec)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::load_all_template_lib, _1,
-                                                          boost::ref(templatelib_info_vec)));
-}
-
-int DBOperation::load_all_template_lib(mysqlpp::Query & query, vector<TemplateLibInfo> & templatelib_info_vec)
-{
-    templatelib_info_vec.clear();
-
-    try
-    {
-        query << "select * from templatelibinfo where isdeleted != 1 ";
-        vector<templatelibinfo> lib_res;
-        query.storein(lib_res);
-
-        for(size_t i=0; i<lib_res.size(); ++i)
-        {
-            templatelibinfo & libinfo = lib_res[i];
-
-            TemplateLibInfo info;
-
-            info.templatelib_id = libinfo.tid;
-            info.usr_id = libinfo.username;
-            info.templatelib_name = libinfo.templatelibname.c_str();
-            info.is_deleted = libinfo.isdeleted;
-            info.is_active = libinfo.isactive;
-            info.is_system = libinfo.issystem;
-            info.description = libinfo.description.c_str();
-            info.domain_info.first = libinfo.type;
-            info.domain_info.second.first = libinfo.srclanguage;
-            info.domain_info.second.second = libinfo.tgtlanguage;
-
-
-
-
-            templatelib_info_vec.push_back(info);
-        }
-
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_FAILED;
-    }
-
-
-    return SUCCESS;
-}
-
-int DBOperation::LoadTemplate(const TemplateLibInfo & templatelib_info, vector<TemplateInfo> & template_info_vec)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::load_template, _1,
-                                                          boost::ref(templatelib_info),
-                                                          boost::ref(template_info_vec)));
-}
-
-int DBOperation::load_template(mysqlpp::Query & query, const TemplateLibInfo & templatelib_info, vector<TemplateInfo> & template_info_vec)
-{
-    template_info_vec.clear();
-
-    try
-    {
-        query << "select * from templateiteminfo where isdeleted != 1 and templatelib_id = " << templatelib_info.templatelib_id;
-        vector<templateiteminfo> item_res;
-        query.storein(item_res);
-
-        for(size_t i=0; i<item_res.size(); ++i)
-        {
-            templateiteminfo & item = item_res[i];
-
-            TemplateInfo info;
-
-            info.template_id = item.tid;
-            info.src = item.src.c_str();
-            info.tgt = item.tgt.c_str();
-            info.is_deleted = item.isdeleted;
-            info.is_active = item.isactive;
-
-            info.is_checked = item.ischecked;
-
-
-            template_info_vec.push_back(info);
-        }
-
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_FAILED;
-    }
-
-    return SUCCESS;
-}
 
 int DBOperation::LoadSegWord(vector<seg_word_share_ptr> & sp_vec)
 {
@@ -2575,308 +2838,6 @@ int DBOperation::recovery_seg_word(mysqlpp::Query & query, const vector<int> & w
             return ERR_DB_FAILED;
         }
 
-    }
-
-    return SUCCESS;
-}
-
-int DBOperation::GetRecoverTemplateLibTemplateInfo(const TemplateLibID & templatelib_id, vector<TemplateInfo> & template_vec)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::get_recover_template_lib_template_info, _1,
-                                                          boost::ref(templatelib_id),
-                                                          boost::ref(template_vec)));
-}
-
-int DBOperation::get_recover_template_lib_template_info(mysqlpp::Query & query, const TemplateLibID & templatelib_id, vector<TemplateInfo> & template_vec)
-{
-    template_vec.clear();
-
-    try
-    {
-        query << "select * from templateiteminfo where templatelib_id = " << templatelib_id;
-        vector<templateiteminfo> item_res;
-        query.storein(item_res);
-
-        if(item_res.size() != 0)
-        {
-            for(size_t i=0; i<item_res.size(); ++i)
-            {
-                templateiteminfo & item = item_res[i];
-
-                TemplateInfo info;
-
-                info.template_id = item.tid;
-                info.src = item.src.c_str();
-                info.tgt = item.tgt.c_str();
-                info.is_deleted = item.isdeleted;
-                info.is_active = item.isactive;
-
-                info.is_checked = item.ischecked;
-
-
-                template_vec.push_back(info);
-            }
-        }
-
-        return ERR_NOTEMPLATE_GET;
-
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_FAILED;
-    }
-
-
-    return SUCCESS;
-}
-
-int DBOperation::GetRecoverTemplateLibInfo(const TemplateLibID & templatelib_id, TemplateLibInfo & templatelib_info)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::get_recover_template_lib_info, _1,
-                                                          boost::ref(templatelib_id),
-                                                          boost::ref(templatelib_info)));
-}
-
-int DBOperation::get_recover_template_lib_info(mysqlpp::Query & query, const TemplateLibID & templatelib_id, TemplateLibInfo & templatelib_info)
-{
-    try
-    {
-        query << "select * from templatelibinfo where tid = " << templatelib_id;
-        vector<templatelibinfo> lib_res;
-        query.storein(lib_res);
-
-        if(lib_res.size() != 0)
-        {
-            templatelibinfo & libinfo = lib_res[0];
-
-            templatelib_info.templatelib_id = libinfo.tid;
-            templatelib_info.usr_id = libinfo.username;
-            templatelib_info.templatelib_name = libinfo.templatelibname.c_str();
-            templatelib_info.is_deleted = libinfo.isdeleted;
-            templatelib_info.is_active = libinfo.isactive;
-            templatelib_info.is_system = libinfo.issystem;
-            templatelib_info.description = libinfo.description.c_str();
-            templatelib_info.domain_info.first = libinfo.type;
-            templatelib_info.domain_info.second.first = libinfo.srclanguage;
-            templatelib_info.domain_info.second.second = libinfo.tgtlanguage;
-        }
-
-        return ERR_NOTEMPLATELIB_GET;
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_FAILED;
-    }
-
-    return SUCCESS;
-}
-
-int DBOperation::GetRecoverTemplateInfo(const TemplateID & template_id, TemplateInfo & template_info)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::get_recover_template_info, _1,
-                                                          boost::ref(template_id),
-                                                          boost::ref(template_info)));
-}
-
-int DBOperation::get_recover_template_info(mysqlpp::Query & query, const TemplateID & template_id, TemplateInfo & template_info)
-{
-    try
-    {
-        query << "select * from templateiteminfo where tid = " << template_id;
-        vector<templateiteminfo> item_res;
-        query.storein(item_res);
-
-        if(item_res.size() != 0)
-        {
-            templateiteminfo & item = item_res[0];
-
-            template_info.template_id = item.tid;
-            template_info.src = item.src.c_str();
-            template_info.tgt = item.tgt.c_str();
-            template_info.is_deleted = item.isdeleted;
-            template_info.is_active = item.isactive;
-
-            template_info.is_checked = item.ischecked;
-        }
-
-        return ERR_NOTEMPLATE_GET;
-
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_FAILED;
-    }
-
-    return SUCCESS;
-}
-
-int DBOperation::RecoverTemplateLib(const TemplateLibID & templatelib_id)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::recover_template_lib, _1,
-                                                          boost::ref(templatelib_id)));
-}
-
-int DBOperation::recover_template_lib(mysqlpp::Query & query, const TemplateLibID & templatelib_id)
-{
-    try
-    {
-        query << "update templatelibinfo set isdeleted=0 where tid = " << templatelib_id;
-        //lout << query.str() << endl;
-        query.execute();
-
-        query.reset();
-        query << "update templateiteminfo set isdeleted=0 where templatelib_id = " << templatelib_id;
-        //lout << query.str() << endl;
-        query.execute();
-
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_FAILED;
-    }
-
-    //lout << "DB delete template lib finish." << endl;
-
-    return SUCCESS;
-}
-
-int DBOperation::RecoverTemplate(const TemplateID & template_id)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::recover_template, _1,
-                                                          boost::ref(template_id)));
-}
-
-int DBOperation::recover_template(mysqlpp::Query & query, const TemplateID & template_id)
-{
-    try
-    {
-        query << "update templateiteminfo set isdeleted=0 where tid = " << template_id;
-        query.execute();
-
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_FAILED;
-    }
-
-    return SUCCESS;
-}
-
-
-int DBOperation::GetImportTemplateInfo(const vector<int> & import_template_id, vector<TemplateInfo> & import_template_info)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::get_import_template_info, _1,
-                                                          boost::ref(import_template_id),
-                                                          boost::ref(import_template_info)));
-}
-
-int DBOperation::get_import_template_info(mysqlpp::Query & query, const vector<int> & import_template_id, vector<TemplateInfo> & import_template_info)
-{
-    import_template_info.clear();
-
-    try
-    {
-        for(size_t i=0; i<import_template_id.size(); i++)
-        {
-            query << "select * from templateiteminfo where tid = " << import_template_id[i];
-            vector<templateiteminfo> item;
-            query.storein(item);
-
-            TemplateInfo info;
-
-            info.template_id = item[0].tid;
-            info.src = item[0].src.c_str();
-            info.tgt = item[0].tgt.c_str();
-            info.is_deleted = item[0].isdeleted;
-            info.is_active = item[0].isactive;
-
-            info.is_checked = item[0].ischecked;
-            import_template_info.push_back(info);
-
-            query.reset();
-        }
-
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_FAILED;
-    }
-
-
-    return SUCCESS;
-}
-
-int DBOperation::ModifyStatus_T(const vector<int> & import_template_id)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::modify_status_t, _1,
-                                                          boost::ref(import_template_id)));
-}
-
-int DBOperation::modify_status_t(mysqlpp::Query & query, const vector<int> & import_template_id)
-{
-    try
-    {
-        for(size_t i=0; i<import_template_id.size(); i++)
-        {
-            query << "update templateimport set status=2, isdeleted=1 where fromid = " << import_template_id[i];
-            //lout << query.str() << endl;
-            query.execute();
-        }
-
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_FAILED;
-    }
-
-    return SUCCESS;
-}
-
-int DBOperation::GetMaxTemplateID(TemplateLibID & templatelib_id, TemplateID & template_id)
-{
-    return DBConnPool::GetInstance()->Runable(boost::bind(&DBOperation::get_max_template_id, _1,
-                                                          boost::ref(templatelib_id),
-                                                          boost::ref(template_id)));
-}
-
-int DBOperation::get_max_template_id(mysqlpp::Query & query, TemplateLibID & templatelib_id, TemplateID & template_id)
-{
-    try
-    {
-        query << "select tid from templatelibinfo order by tid desc limit 0,1";
-        vector<templatelibinfo> res;
-        query.storein(res);
-
-        if(res.size() == 0 )
-        {
-            templatelib_id = 0;
-        }else
-        {
-            templatelib_id = res[0].tid;
-        }
-
-        lout << "templatelib_id = " << templatelib_id << endl;
-
-        query.reset();
-
-        query << "select tid from templateiteminfo order by tid desc limit 0,1";
-        vector<templateiteminfo> item_res;
-        query.storein(item_res);
-
-        if(item_res.size() == 0 )
-        {
-            template_id = 0;
-        }else
-        {
-            template_id = item_res[0].tid;
-        }
-
-        lout << "template_id = " << template_id << endl;
-
-    }catch(mysqlpp::Exception e)
-    {
-        lerr<< "Failed with mysql exception : " << e.what() << endl;
-        return ERR_DB_FAILED;
     }
 
     return SUCCESS;
