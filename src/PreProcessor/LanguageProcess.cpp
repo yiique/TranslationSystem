@@ -31,7 +31,7 @@ bool LanguageProcess::StandardPreSentProcess(SentProcCell &sent_cell)
 
     // ∆•≈‰¥ µ‰
     list<dictionary::MatchResult> match_result_list;
-    dictionary::DictManager::GetInstance()->MatchSentByMaxSequence(sent_cell.usr_id, sent_cell.domain,
+    dictionary::DictManager::GetInstance()->MatchSentByMaxSequence(sent_cell.usr_id, sent_cell.domain, true,
                                                                    sent_cell.trans_src._src_str, match_result_list);
 
     for (list<dictionary::MatchResult>::iterator iter = match_result_list.begin(); iter != match_result_list.end(); ++iter)
